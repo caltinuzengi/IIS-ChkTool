@@ -3,18 +3,19 @@ import os
 import shutil
 from PyQt5.QtWidgets import (QApplication, QWidget, QVBoxLayout, QPushButton, QLabel,
                              QCheckBox, QMessageBox, QScrollArea, QHBoxLayout)
-from config import ROOT_DIR
+from root_selector import RootSelector
 
 services = {}
 
 class ServiceManager(QWidget):
-    def __init__(self):
+    def __init__(self, root_dir):
         super().__init__()
+        self.root_dir = root_dir
         self.initUI()
         self.loadServices()
 
     def initUI(self):
-        self.setWindowTitle('Chk Manager')
+        self.setWindowTitle(f'Service Checker - {self.root_dir}')
         self.layout = QVBoxLayout()
 
         self.scroll = QScrollArea()
@@ -27,8 +28,8 @@ class ServiceManager(QWidget):
         self.layout.addWidget(self.scroll)
 
         self.button_layout = QHBoxLayout()
-        self.off_button = QPushButton('OFF Selected')
-        self.live_button = QPushButton('LIVE Selected')
+        self.off_button = QPushButton('Set Selected to OFF')
+        self.live_button = QPushButton('Set Selected to LIVE')
         self.rollback_button = QPushButton('Rollback')
         self.refresh_button = QPushButton('Refresh')
 
@@ -69,7 +70,7 @@ class ServiceManager(QWidget):
             self.scroll_layout.addLayout(h_layout)
             services[service_name]["checkbox"] = checkbox
 
-        for subdir, dirs, files in os.walk(ROOT_DIR):
+        for subdir, dirs, files in os.walk(self.root_dir):
             if "chk.txt" in files:
                 chk_path = os.path.join(subdir, "chk.txt")
                 service_name = os.path.basename(subdir)
@@ -86,7 +87,7 @@ class ServiceManager(QWidget):
             if info["checkbox"].isChecked():
                 with open(info["path"], "w") as f:
                     f.write(status)
-        QMessageBox.information(self, "Succesfull", f"Selected Services: '{status}'")
+        QMessageBox.information(self, "Success", f"Selected services set to '{status}'")
         self.loadServices()
 
     def rollbackSelected(self):
@@ -95,11 +96,13 @@ class ServiceManager(QWidget):
                 bak_path = info["path"] + ".bak"
                 if os.path.exists(bak_path):
                     shutil.copy(bak_path, info["path"])
-        QMessageBox.information(self, "Rollback", "Rollback Completed for Selected Services")
+        QMessageBox.information(self, "Rollback", "Selected services rolled back.")
         self.loadServices()
 
 if __name__ == '__main__':
     app = QApplication(sys.argv)
-    ex = ServiceManager()
-    ex.show()
-    sys.exit(app.exec_())
+    selector = RootSelector()
+    if selector.exec_() == selector.Accepted and selector.selected_path:
+        ex = ServiceManager(selector.selected_path)
+        ex.show()
+        sys.exit(app.exec_())
